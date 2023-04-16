@@ -1,264 +1,306 @@
-const gameBoard = document.getElementById("game-board");
 
-// Initialize the game board
-function createBoard() {
-  for (let i = 0; i < 200; i++) {
-    const cell = document.createElement("div");
-    cell.classList.add("cell");
-    gameBoard.appendChild(cell);
-  }
+
+// Global variables
+const canvas = document.getElementById('gameCanvas');
+const context = canvas.getContext('2d');
+const blockSize = 30;
+const numRows = 20;
+const numCols = 10;
+const playfield = Array.from({ length: numRows }, () => Array(numCols).fill(0));
+let currentTetromino;
+let dropCounter = 0;
+let dropInterval = 1000;
+let lastTime = 0;
+
+function initializeGame() {
+    // Set up the canvas dimensions
+    canvas.width = blockSize * numCols;
+    canvas.height = blockSize * numRows;
+
+    // Add event listeners for keyboard input
+    document.addEventListener('keydown', handleInput);
+
+    // Spawn the first Tetromino
+    spawnTetromino();
+
+    // Start the game loop
+    startGame();
+}
+
+function startGame() {
+    gameLoop();
+}
+
+function gameLoop(time = 0) {
+    // Calculate time difference since last frame
+    const deltaTime = time - lastTime;
+    lastTime = time;
+
+    // Update drop counter and move the Tetromino down if needed
+    dropCounter += deltaTime;
+    if (dropCounter > dropInterval) {
+        moveTetromino(0, 1);
+        dropCounter = 0;
+    }
+
+    // Update the game state
+    update();
+
+    // Render the game state
+    render();
+
+    // Continue the game loop
+    requestAnimationFrame(gameLoop);
+}
+
+
+
+function handleInput(event) {
+    const keyCode = event.keyCode;
+
+    if (keyCode === 37) { // Left arrow key
+        moveTetromino(-1, 0);
+    } else if (keyCode === 39) { // Right arrow key
+        moveTetromino(1, 0);
+    } else if (keyCode === 40) { // Down arrow key
+        moveTetromino(0, 1);
+    } else if (keyCode === 38) { // Up arrow key
+        rotateTetromino();
+    }
+}
+
+function update() {
+    // This function will be responsible for updating the game state.
+    // At the moment, we're handling Tetromino movement and rotation in their respective functions.
+    // You may add additional game state updates here if needed.
+}
+
+function render() {
+    // Clear the canvas
+    context.fillStyle = 'black';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Render the playfield
+    for (let row = 0; row < numRows; row++) {
+        for (let col = 0; col < numCols; col++) {
+            if (playfield[row][col]) {
+                context.fillStyle = 'white'; // Change this to the desired color for your Tetromino blocks
+                context.fillRect(col * blockSize, row * blockSize, blockSize, blockSize);
+                context.strokeStyle = 'black'; // Change this to the desired border color for your Tetromino blocks
+                context.strokeRect(col * blockSize, row * blockSize, blockSize, blockSize);
+            }
+        }
+    }
+
+    // Render the current Tetromino (if it exists)
+    if (currentTetromino) {
+        currentTetromino.blocks.forEach((row, i) => {
+            row.forEach((value, j) => {
+                if (value) {
+                    context.fillStyle = 'white'; // Change this to the desired color for your Tetromino blocks
+                    context.fillRect((currentTetromino.x + j) * blockSize, (currentTetromino.y + i) * blockSize, blockSize, blockSize);
+                    context.strokeStyle = 'black'; // Change this to the desired border color for your Tetromino blocks
+                    context.strokeRect((currentTetromino.x + j) * blockSize, (currentTetromino.y + i) * blockSize, blockSize, blockSize);
+                }
+            });
+        });
+    }
 }
 
 
 const tetrominoes = [
-  {
-    shape: [
-      [0, 1, 0],
-      [1, 1, 1],
-      [0, 0, 0]
+    // I
+    [
+        [1, 1, 1, 1]
     ],
-    color: 'cyan'
-  },
-  {
-    shape: [
-      [0, 1, 1],
-      [1, 1, 0],
-      [0, 0, 0]
+    // O
+    [
+        [1, 1],
+        [1, 1]
     ],
-    color: 'red'
-  },
-  {
-    shape: [
-      [1, 1, 0],
-      [0, 1, 1],
-      [0, 0, 0]
+    // T
+    [
+        [0, 1, 0],
+        [1, 1, 1]
     ],
-    color: 'blue'
-  },
-  {
-    shape: [
-      [1, 1],
-      [1, 1]
+    // S
+    [
+        [0, 1, 1],
+        [1, 1, 0]
     ],
-    color: 'yellow'
-  },
-  {
-    shape: [
-      [0, 1, 0, 0],
-      [0, 1, 0, 0],
-      [0, 1, 0, 0],
-      [0, 1, 0, 0]
+    // Z
+    [
+        [1, 1, 0],
+        [0, 1, 1]
     ],
-    color: 'purple'
-  },
-  {
-    shape: [
-      [0, 0, 1],
-      [1, 1, 1],
-      [0, 0, 0]
+    // J
+    [
+        [1, 0, 0],
+        [1, 1, 1]
     ],
-    color: 'green'
-  },
-  {
-    shape: [
-      [1, 0, 0],
-      [1, 1, 1],
-      [0, 0, 0]
-    ],
-    color: 'orange'
-  }
+    // L
+    [
+        [0, 0, 1],
+        [1, 1, 1]
+    ]
 ];
 
 
-let currentTetromino = null;
-let currentPosition = { x: 0, y: 0 };
 
-function drawTetromino() {
-  for (let y = 0; y < currentTetromino.shape.length; y++) {
-    for (let x = 0; x < currentTetromino.shape[y].length; x++) {
-      if (currentTetromino.shape[y][x]) {
-        const cell = gameBoard.children[(currentPosition.y + y) * 10 + currentPosition.x + x];
-        cell.style.backgroundColor = currentTetromino.color;
-      }
-    }
-  }
-}
+function moveTetromino(offsetX, offsetY) {
+    currentTetromino.x += offsetX;
+    currentTetromino.y += offsetY;
 
-function eraseTetromino() {
-  for (let y = 0; y < currentTetromino.shape.length; y++) {
-    for (let x = 0; x < currentTetromino.shape[y].length; x++) {
-      if (currentTetromino.shape[y][x]) {
-        const cell = gameBoard.children[(currentPosition.y + y) * 10 + currentPosition.x + x];
-        cell.style.backgroundColor = '';
-      }
-    }
-  }
-}
+    if (checkCollision(currentTetromino)) {
+        currentTetromino.x -= offsetX;
+        currentTetromino.y -= offsetY;
 
-function spawnTetromino() {
-  // Select a random Tetromino shape
-  const randomIndex = Math.floor(Math.random() * tetrominoes.length);
-  currentTetromino = JSON.parse(JSON.stringify(tetrominoes[randomIndex]));
-
-  // Set the initial position at the top of the game board
-  currentPosition.x = Math.floor(gameBoard.children.length / 20 / 2) - Math.ceil(currentTetromino.shape[0] / 2);
-  currentPosition.y = 0;
-
-  // Draw the Tetromino on the game board
-  drawTetromino();
-}
-
- 
-
-function rotateMatrix(matrix) {
-  const N = matrix.length - 1;
-  const result = matrix.map((row, i) =>
-    row.map((val, j) => matrix[N - j][i])
-  );
-  return result;
-}
-
-function isValidMove(newPosition, newShape) {
-  for (let y = 0; y < newShape.length; y++) {
-    for (let x = 0; x < newShape[y].length; x++) {
-      if (newShape[y][x]) {
-        const newX = newPosition.x + x;
-        const newY = newPosition.y + y;
-
-        if (newX < 0 || newX >= 10 || newY >= 20) {
-          return false;
+        if (offsetY > 0) {
+            mergeTetromino();
+            spawnTetromino();
+            clearLines();
         }
-
-        const cell = gameBoard.children[newY * 10 + newX];
-        if (cell.style.backgroundColor) {
-          return false;
-        }
-      }
     }
-  }
-
-  return true;
 }
 
 function rotateTetromino() {
-  eraseTetromino();
+    const originalBlocks = currentTetromino.blocks;
+    const rotatedBlocks = originalBlocks[0].map((_, index) => originalBlocks.map(row => row[originalBlocks.length - 1 - index]));
 
-  const newShape = rotateMatrix(currentTetromino.shape);
+    currentTetromino.blocks = rotatedBlocks;
 
-  if (isValidMove(currentPosition, newShape)) {
-    currentTetromino.shape = newShape;
-  }
-
-  drawTetromino();
+    if (checkCollision(currentTetromino)) {
+        currentTetromino.blocks = originalBlocks;
+    }
 }
 
-// Create a function to move a Tetromino
-function moveTetromino(dx, dy) {
-  eraseTetromino();
 
-  const newPosition = { x: currentPosition.x + dx, y: currentPosition.y + dy };
-
-  if (isValidMove(newPosition, currentTetromino.shape)) {
-    currentPosition = newPosition;
-  } else if (dy > 0) {
-    // If the move is invalid due to a downward movement,
-    // lock the Tetromino and return false to indicate a collision
-    lockTetromino();
+function checkCollision(tetromino) {
+    for (let row = 0; row < tetromino.blocks.length; row++) {
+        for (let col = 0; col < tetromino.blocks[row].length; col++) {
+            if (tetromino.blocks[row][col] &&
+                (playfield[tetromino.y + row] === undefined || playfield[tetromino.y + row][tetromino.x + col] === undefined || playfield[tetromino.y + row][tetromino.x + col])) {
+                return true;
+            }
+        }
+    }
     return false;
-  }
-
-  drawTetromino();
-  return true;
 }
 
-// Create a function to handle user input
-function handleUserInput(event) {
-  switch (event.key) {
-    case 'ArrowUp':
-      rotateTetromino();
-      break;
-    case 'ArrowRight':
-      moveTetromino(1, 0);
-      break;
-    case 'ArrowDown':
-      moveTetromino(0, 1);
-      break;
-    case 'ArrowLeft':
-      moveTetromino(-1, 0);
-      break;
-  }
-}
-
-// Create a function to check for collisions
-function checkCollision() {
-  const newPosition = { x: currentPosition.x, y: currentPosition.y + 1 };
-
-  return !isValidMove(newPosition, currentTetromino.shape);
-}
-
-// Create a function to lock the Tetromino in place
-function lockTetromino() {
-  for (let y = 0; y < currentTetromino.shape.length; y++) {
-    for (let x = 0; x < currentTetromino.shape[y].length; x++) {
-      if (currentTetromino.shape[y][x]) {
-        const cell = gameBoard.children[(currentPosition.y + y) * 10 + currentPosition.x + x];
-        cell.style.backgroundColor = currentTetromino.color;
-      }
+function mergeTetromino() {
+    for (let row = 0; row < currentTetromino.blocks.length; row++) {
+        for (let col = 0; col < currentTetromino.blocks[row].length; col++) {
+            if (currentTetromino.blocks[row][col]) {
+                playfield[currentTetromino.y + row][currentTetromino.x + col] = 1;
+            }
+        }
     }
-  }
 }
 
-// Create a function to clear completed lines
 function clearLines() {
-  for (let y = 0; y < 20; y++) {
-    const row = Array.from({ length: 10 }, (_, x) => gameBoard.children[y * 10 + x]);
-    const isRowComplete = row.every(cell => cell.style.backgroundColor);
+    outer: for (let row = numRows - 1; row >= 0; ) {
+        for (let col = 0; col < numCols; col++) {
+            if (!playfield[row][col]) {
+                continue outer;
+            }
+        }
 
-    if (isRowComplete) {
-      row.forEach(cell => cell.style.backgroundColor = '');
-      const cellsAbove = Array.from({ length: y * 10 }, (_, i) => gameBoard.children[i]);
-      cellsAbove.reverse().forEach(cell => cell.style.backgroundColor = cell.nextSibling.style.backgroundColor);
+        playfield.splice(row, 1);
+        playfield.unshift(Array(numCols).fill(0));
+        updateScore();
     }
-  }
 }
 
-function isGameOver() {
-  for (let x = 0; x < 10; x++) {
-    const cell = gameBoard.children[x];
-    if (cell.style.backgroundColor) {
-      return true;
-    }
-  }
-  return false;
+function gameOver() {
+    // Reset the playfield
+    playfield.forEach(row => row.fill(0));
+
+    // Show a game over message or screen
+    alert('Game Over!');
+
+    // Reset the score and level
+    // Assuming you have implemented updateScore() and updateLevelAndSpeed() functions
+    updateScore(true);
+    updateLevelAndSpeed(true);
 }
 
-function gameLoop() {
-  spawnTetromino();
 
-  document.addEventListener('keydown', handleUserInput);
+let score = 0;
+let level = 1;
+const linesPerLevel = 10;
+let linesCleared = 0;
+const nextTetrominoCanvas = document.getElementById('nextTetrominoCanvas');
+const nextTetrominoContext = nextTetrominoCanvas.getContext('2d');
+let nextTetromino;
 
-  const gameInterval = setInterval(() => {
-    if (!checkCollision()) {
-      moveTetromino(0, 1);
+function updateScore(reset = false) {
+    if (reset) {
+        score = 0;
     } else {
-      lockTetromino();
-      clearLines();
+        score += 100;
+        linesCleared++;
 
-      if (isGameOver()) {
-        clearInterval(gameInterval);
-        alert('Game over!');
-      } else {
-        spawnTetromino();
-      }
+        if (linesCleared % linesPerLevel === 0) {
+            updateLevelAndSpeed();
+        }
     }
-  }, 500);
+
+    document.getElementById('score').innerText = score;
+}
+
+function renderNextTetromino() {
+    // Clear the next Tetromino canvas
+    nextTetrominoContext.fillStyle = 'black';
+    nextTetrominoContext.fillRect(0, 0, nextTetrominoCanvas.width, nextTetrominoCanvas.height);
+
+    // Render the next Tetromino
+    if (nextTetromino) {
+        const blockSize = 30;
+        nextTetromino.blocks.forEach((row, i) => {
+            row.forEach((value, j) => {
+                if (value) {
+                    nextTetrominoContext.fillStyle = 'white'; // Change this to the desired color for your Tetromino blocks
+                    nextTetrominoContext.fillRect(j * blockSize, i * blockSize, blockSize, blockSize);
+                    nextTetrominoContext.strokeStyle = 'black'; // Change this to the desired border color for your Tetromino blocks
+                    nextTetrominoContext.strokeRect(j * blockSize, i * blockSize, blockSize, blockSize);
+                }
+            });
+        });
+    }
+}
+
+function updateLevelAndSpeed(reset = false) {
+    if (reset) {
+        level = 1;
+        dropInterval = 1000;
+    } else {
+        level++;
+        dropInterval -= 50;
+    }
+
+    document.getElementById('level').innerText = level;
+}
+
+function spawnTetromino() {
+    const index = nextTetromino ? tetrominoes.indexOf(nextTetromino.blocks) : Math.floor(Math.random() * tetrominoes.length);
+    nextTetromino = {
+        blocks: tetrominoes[Math.floor(Math.random() * tetrominoes.length)]
+    };
+
+    currentTetromino = {
+        x: Math.floor(numCols / 2) - Math.ceil(nextTetromino.blocks[0].length / 2),
+        y: 0,
+        blocks: nextTetromino.blocks
+    };
+
+    renderNextTetromino();
+
+    // Check for game over
+    if (checkCollision(currentTetromino)) {
+        gameOver();
+    }
 }
 
 
-
-
-
-createBoard();
-gameLoop();
-
+initializeGame();
 
