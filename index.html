@@ -2,24 +2,153 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Tetris Game</title>
-    <link rel="stylesheet" href="styles.css">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Tetris</title>
+    <style>
+        canvas {
+            display: block;
+            margin: auto;
+            background-color: black;
+        }
+    </style>
 </head>
 <body>
-    <div id="gameContainer">
-        <canvas id="gameCanvas"></canvas>
-        <div id="sidebar">
-            <div id="scoreContainer">
-                <span id="scoreLabel">Score:</span>
-                <span id="score">0</span>
-            </div>
-            <div id="levelContainer">
-                <span id="levelLabel">Level:</span>
-                <span id="level">1</span>
-            </div>
-            <canvas id="nextTetrominoCanvas"></canvas>
-        </div>
-    </div>
-    <script src="game.js"></script>
+    <canvas id="gameCanvas" width="300" height="600"></canvas>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const context = canvas.getContext('2d');
+        const blockSize = 30;
+        const numRows = 20;
+        const numCols = 10;
+        const playfield = Array.from({ length: numRows }, () => Array(numCols).fill(0));
+        let currentTetromino;
+        let dropCounter = 0;
+        let dropInterval = 1000;
+        let lastTime = 0;
+
+        document.addEventListener('keydown', handleInput);
+
+        function handleInput(event) {
+            if (event.key === 'ArrowLeft') {
+                moveTetromino(-1);
+            } else if (event.key === 'ArrowRight') {
+                moveTetromino(1);
+            } else if (event.key === ' ') {
+                dropTetromino();
+            }
+        }
+
+        function gameLoop(time = 0) {
+            const deltaTime = time - lastTime;
+            lastTime = time;
+
+            dropCounter += deltaTime;
+            if (dropCounter > dropInterval) {
+                moveTetromino(0, 1);
+                dropCounter = 0;
+            }
+
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function draw() {
+            context.fillStyle = 'black';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+
+            drawMatrix(playfield, { x: 0, y: 0 });
+            drawMatrix(currentTetromino.matrix, currentTetromino.pos);
+        }
+
+        function drawMatrix(matrix, offset) {
+            matrix.forEach((row, y) => {
+                row.forEach((value, x) => {
+                    if (value !== 0) {
+                        context.fillStyle = 'white';
+                        context.fillRect(x + offset.x, y + offset.y, 1, 1);
+                    }
+                });
+            });
+        }
+
+        const tetrominoes = [
+            [
+                [1, 1, 1, 1]
+            ],
+            [
+                [1, 1],
+                [1, 1]
+            ],
+            [
+                [0, 1, 0],
+                [1, 1, 1]
+            ],
+            [
+                [0, 1, 1],
+                [1, 1, 0]
+            ],
+            [
+                [1, 1, 0],
+                [0, 1, 1]
+            ],
+            [
+                [1, 0, 0],
+                [1, 1, 1]
+            ],
+            [
+                [0, 0, 1],
+                [1, 1, 1]
+            ]
+        ];
+
+        function spawnTetromino() {
+            const matrix = tetrominoes[Math.floor(Math.random() * tetrominoes.length)];
+            const pos = { x: Math.floor(numCols / 2) - Math.floor(matrix[0].length / 2), y: 0 };
+            return { matrix, pos };
+        }
+
+                function collide(matrix, pos) {
+            for (let y = 0; y < matrix.length; y++) {
+                for (let x = 0; x < matrix[y].length; x++) {
+                    if (matrix[y][x] && (playfield[y + pos.y] && playfield[y + pos.y][x + pos.x]) !== 0) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        function merge(matrix, pos) {
+            matrix.forEach((row, y) => {
+                row.forEach((value, x) => {
+                    if (value) {
+                        playfield[y + pos.y][x + pos.x] = value;
+                    }
+                });
+            });
+        }
+
+        function moveTetromino(dir) {
+            const pos = { x: currentTetromino.pos.x + dir, y: currentTetromino.pos.y };
+            if (!collide(currentTetromino.matrix, pos)) {
+                currentTetromino.pos.x += dir;
+            }
+        }
+
+        function dropTetromino() {
+            const pos = { x: currentTetromino.pos.x, y: currentTetromino.pos.y + 1 };
+            if (!collide(currentTetromino.matrix, pos)) {
+                currentTetromino.pos.y++;
+            } else {
+                merge(currentTetromino.matrix, currentTetromino.pos);
+                currentTetromino = spawnTetromino();
+            }
+        }
+
+        context.scale(blockSize, blockSize);
+        currentTetromino = spawnTetromino();
+        gameLoop();
+    </script>
 </body>
 </html>
